@@ -32,5 +32,5 @@ Players take on the roles of these factions in a dice-rolling game, where each r
 - **Java**: Language used for server-side logic and game mechanics implementation.
 
 ## Under Development
-Stay tuned, because winter is coming, and o is Dragons' Dice Duel: The Dance of the Dragons!
+Stay tuned, because winter is coming, and so is Dragons' Dice Duel: The Dance of the Dragons!
 
