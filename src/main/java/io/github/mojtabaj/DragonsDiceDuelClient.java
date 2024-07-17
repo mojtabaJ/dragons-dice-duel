@@ -1,154 +1,100 @@
 package io.github.mojtabaj;
 
 import io.github.mojtabaj.data.*;
+import io.github.mojtabaj.data.DiceData;
 import io.github.mojtabaj.data.DragonsDiceDuelGrpc;
+import io.github.mojtabaj.data.DragonsDiceDuelProto.*;
 import io.github.mojtabaj.data.Faction;
+import io.github.mojtabaj.data.GameRequest;
 import io.github.mojtabaj.data.GameResponse;
-import io.github.mojtabaj.data.JoinRequest;
-import io.github.mojtabaj.data.JoinResponse;
-import io.github.mojtabaj.data.PlayerAction;
-import io.github.mojtabaj.data.RollRequest;
-import io.github.mojtabaj.data.RollResponse;
+import io.github.mojtabaj.data.PlayerData;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
+import java.util.List;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class DragonsDiceDuelClient {
 
-    private static final Logger logger = Logger.getLogger(DragonsDiceDuelClient.class.getName());
-    static CountDownLatch latch = new CountDownLatch(1); // Adjust the count based on the number of clients
-
     private final DragonsDiceDuelGrpc.DragonsDiceDuelStub asyncStub;
-    private final String playerName;
-    private final Faction faction;
+    public static CountDownLatch latch = new CountDownLatch(1);
 
-    public DragonsDiceDuelClient(String host, int port, String playerName, Faction faction) {
-        this.playerName = playerName;
-        this.faction = faction;
-
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port)
-                .usePlaintext()
-                .build();
+    private StreamObserver<GameRequest> requestObserver;
+    public DragonsDiceDuelClient(ManagedChannel channel) {
         asyncStub = DragonsDiceDuelGrpc.newStub(channel);
     }
 
     public void playGame() {
-        logger.info(playerName + " joining the game...");
-
-        JoinRequest joinRequest = JoinRequest.newBuilder()
-                .setPlayerName(playerName)
-                .setFaction(faction)
-                .build();
-
-        PlayerAction playerAction = PlayerAction.newBuilder()
-                .setJoinRequest(joinRequest)
-                .build();
-
-        StreamObserver<GameResponse> responseObserver = new StreamObserver<GameResponse>() {
+        requestObserver = asyncStub.playGame(new StreamObserver<GameResponse>() {
             @Override
-            public void onNext(GameResponse response) {
-                if (response.getResponseCase() == GameResponse.ResponseCase.JOIN_RESPONSE) {
-                    handleJoinResponse(response.getJoinResponse());
-                } else if (response.getResponseCase() == GameResponse.ResponseCase.ROLL_RESPONSE) {
-                    handleRollResponse(response.getRollResponse(), this);
-                } else {
-                    logger.log(Level.WARNING, "Unknown response.");
+            public void onNext(GameResponse gameResponse) {
+                if (gameResponse.hasJoined()) {
+                    PlayerData joinedPlayer = gameResponse.getJoined();
+                    System.out.println("Joined the game: " + joinedPlayer);
+                } else if (gameResponse.hasPlayed()) {
+                    PlayerData played = gameResponse.getPlayed();
+                    System.out.println("Player action: " + played);
+                } else if (gameResponse.hasTurns()) {
+                    PlayerData currentTurnPlayer = gameResponse.getTurns();
+                    System.out.println("It's " + currentTurnPlayer.getPlayerName() + "'s turn.");
+                    playTurn(currentTurnPlayer);
+                } else if (gameResponse.hasResult()) {
+                    System.out.println("Game result: " + gameResponse.getResult());
+                    latch.countDown();
                 }
             }
 
             @Override
             public void onError(Throwable t) {
-                logger.log(Level.SEVERE, "Error occurred in game play: " + t.getMessage());
                 t.printStackTrace();
             }
 
             @Override
             public void onCompleted() {
-                logger.info("Game over.");
+                System.out.println("Game completed.");
             }
-        };
-
-        asyncStub.playGame(responseObserver).onNext(playerAction);
-    }
-
-
-    private void handleJoinResponse(JoinResponse response) {
-        logger.info("Join Response: " + response.getMessage());
-
-        if (response.getGameStarted()) {
-            logger.info("Game has started. Waiting for your turn...");
-        } else {
-            logger.info("Waiting for more players to join...");
-        }
-    }
-
-    private void handleRollResponse(RollResponse response, StreamObserver<GameResponse> responseObserver) {
-        logger.info("Roll Response:");
-        logger.info("- Player: " + response.getPlayerName());
-        logger.info("- Roll: " + response.getRollValue());
-        logger.info("- Points: " + response.getPoints());
-        logger.info("- Extra Turn: " + response.getExtraTurn());
-        logger.info("- Winner: " + response.getIsWinner());
-        logger.info("- Next Turn: " + response.getNextTurn());
-
-        if (response.getIsWinner()) {
-            logger.info(response.getPlayerName() + " wins the game!");
-            responseObserver.onCompleted();
-            latch.countDown();
-            return;
-        }
-
-        if (response.getNextTurn().equals(playerName)) {
-
-
-            RollRequest rollRequest = RollRequest.newBuilder()
-                    .setPlayerName(playerName)
-                    .build();
-
-            PlayerAction playerAction = PlayerAction.newBuilder()
-                    .setRollRequest(rollRequest)
-                    .build();
-
-            asyncStub.playGame(responseObserver).onNext(playerAction);
-        }
-    }
-
-    public static void main(String[] args) {
-        String playerName1 = "Player1 (THE_GREENS)";
-        Faction faction1 = Faction.THE_GREENS;
-
-        String playerName2 = "Player2 (THE_BLACKS)";
-        Faction faction2 = Faction.THE_BLACKS;
-
-        ExecutorService executorService = Executors.newFixedThreadPool(2);
-
-        // Player 1
-        executorService.submit(() -> {
-            DragonsDiceDuelClient client1 = new DragonsDiceDuelClient("localhost", 9090, playerName1, faction1);
-            client1.playGame();
         });
 
-        // Player 2
-        executorService.submit(() -> {
-            DragonsDiceDuelClient client2 = new DragonsDiceDuelClient("localhost", 9090, playerName2, faction2);
-            client2.playGame();
-        });
+        joinGame(requestObserver);
+    }
 
-        // Shutdown executor after game completion
-        // Wait for all clients to complete
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            executorService.shutdown();
+    private void joinGame(StreamObserver<GameRequest> requestObserver) {
+        //Player list:
+        List<PlayerData> player = List.of(
+                PlayerData.newBuilder().setPlayerName("Queen Rhaenyra Targaryen").setFaction(Faction.THE_BLACKS).build(),
+                PlayerData.newBuilder().setPlayerName("Queen Dowager Alicent Hightower").setFaction(Faction.THE_GREENS).build(),
+                PlayerData.newBuilder().setPlayerName("Prince Daemon Targaryen").setFaction(Faction.THE_BLACKS).build(),
+                PlayerData.newBuilder().setPlayerName("Ser Criston Cole").setFaction(Faction.THE_GREENS).build()
+        );
+
+        for (PlayerData joinRequest : player) {
+            GameRequest gameRequest = GameRequest.newBuilder()
+                    .setJoinRequest(joinRequest)
+                    .build();
+            requestObserver.onNext(gameRequest);
         }
+    }
+
+    private void playTurn(PlayerData player) {
+        int diceValue = new Random().nextInt(6)+1;
+        GameRequest playRequest = GameRequest.newBuilder()
+                .setDice(DiceData.newBuilder().setDice(diceValue).setPlayer(player).build())
+                .build();
+        requestObserver.onNext(playRequest);
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 6565)
+                .usePlaintext()
+                .build();
+
+        DragonsDiceDuelClient client = new DragonsDiceDuelClient(channel);
+        client.playGame();
+
+        channel.shutdown();
+        latch.await();
     }
 }

@@ -14,7 +14,7 @@ public class GrpcServer {
     private final Server server;
 
     public static GrpcServer create(BindableService... services){
-        return create(9090, services);
+        return create(6565, services);
     }
     private GrpcServer(Server server) {
         this.server = server;
