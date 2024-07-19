@@ -5,13 +5,23 @@ import io.github.mojtabaj.data.GameData;
 import io.github.mojtabaj.data.PlayerData;
 import io.github.mojtabaj.repository.PlayerRepository;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * GameHandler handles the main game logic for the Dragons' Dice Duel game.
+ * It includes methods for joining the game, rolling the dice, checking game readiness,
+ * determining the winner, and managing player turns.
+ */
 public class GameHandler {
     private int currentTurnIndex = 0;
 
+    /**
+     * Allows a player to join the game.
+     *
+     * @param playerName the name of the player joining the game.
+     * @param faction the faction the player is joining (The Greens or The Blacks).
+     * @return the PlayerData of the newly joined player.
+     */
     public synchronized PlayerData joinGame(String playerName, Faction faction) {
         PlayerData player = PlayerData.newBuilder()
                 .setPlayerName(playerName)
@@ -24,6 +34,13 @@ public class GameHandler {
         return player;
     }
 
+    /**
+     * Rolls the dice for a player and updates their score and turn information.
+     *
+     * @param playerId the ID of the player rolling the dice.
+     * @param diceValue the value rolled on the dice.
+     * @return the updated PlayerData after rolling the dice.
+     */
     public synchronized PlayerData rollDice(int playerId, int diceValue) {
         PlayerData player = PlayerRepository.get(playerId);
         if(player == null){
@@ -41,6 +58,12 @@ public class GameHandler {
         return updatedPlayer.build();
     }
 
+    /**
+     * Checks if the game is ready to start.
+     * The game is ready if both factions (The Greens and The Blacks) have at least one player.
+     *
+     * @return true if the game is ready, false otherwise.
+     */
     public synchronized boolean isGameReady() {
         boolean greensPresent = false;
         boolean blacksPresent = false;
@@ -55,6 +78,12 @@ public class GameHandler {
         return greensPresent && blacksPresent;
     }
 
+    /**
+     * Checks if there is a winner in the game.
+     * A player wins by reaching a score of 131 or more.
+     *
+     * @return the GameData containing the winner information if there is a winner, null otherwise.
+     */
     public synchronized GameData checkForWinner() {
         List<PlayerData> players = PlayerRepository.getAll();
         for (PlayerData player : players) {
@@ -68,12 +97,14 @@ public class GameHandler {
         return null;
     }
 
+    /**
+     * Gets the player whose turn it is currently.
+     *
+     * @return the current PlayerData.
+     */
     public synchronized PlayerData getCurrentPlayer() {
         List<PlayerData> players = PlayerRepository.getAll();
         return players.get(currentTurnIndex);
     }
 
-    public synchronized List<PlayerData> getPlayers() {
-        return new ArrayList<>(PlayerRepository.getAll());
-    }
 }

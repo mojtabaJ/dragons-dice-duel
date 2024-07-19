@@ -8,16 +8,30 @@ import io.grpc.stub.StreamObserver;
 
 import java.util.logging.Logger;
 
+/**
+ * GameRequestHandler handles the streaming game requests from the client.
+ * It processes join game requests, dice roll requests, and manages game state updates.
+ */
 public class GameRequestHandler implements StreamObserver<GameRequest> {
 
     private final Logger logger = Logger.getLogger(GameRequestHandler.class.getName());
     private final StreamObserver<GameResponse> responseObserver;
     private final GameHandler handler = new GameHandler();
 
+    /**
+     * Constructs a GameRequestHandler with the specified response observer.
+     *
+     * @param responseObserver the observer for sending game responses back to the client.
+     */
     public GameRequestHandler(StreamObserver<GameResponse> responseObserver) {
         this.responseObserver = responseObserver;
     }
 
+    /**
+     * Handles incoming game requests from the client.
+     *
+     * @param gameRequest the game request from the client.
+     */
     @Override
     public void onNext(GameRequest gameRequest) {
         logger.info("onNext: " + gameRequest);
@@ -62,19 +76,24 @@ public class GameRequestHandler implements StreamObserver<GameRequest> {
 
     }
 
-
+    /**
+     * Handles errors that occur during the streaming process.
+     *
+     * @param throwable the error that occurred.
+     */
     @Override
     public void onError(Throwable throwable) {
         logger.info("onError: " + throwable.getMessage());
     }
 
+    /**
+     * Handles the completion of the streaming process.
+     */
     @Override
     public void onCompleted() {
         logger.info("onCompleted");
         responseObserver.onCompleted();
     }
-
-
 
 
 }
