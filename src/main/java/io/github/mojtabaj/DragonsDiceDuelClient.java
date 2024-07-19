@@ -3,22 +3,25 @@ package io.github.mojtabaj;
 import io.github.mojtabaj.data.*;
 import io.github.mojtabaj.data.DiceData;
 import io.github.mojtabaj.data.DragonsDiceDuelGrpc;
-import io.github.mojtabaj.data.DragonsDiceDuelProto.*;
 import io.github.mojtabaj.data.Faction;
 import io.github.mojtabaj.data.GameRequest;
 import io.github.mojtabaj.data.GameResponse;
 import io.github.mojtabaj.data.PlayerData;
+import io.github.mojtabaj.header.Constants;
+import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Metadata;
+import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 
 import java.util.List;
 import java.util.Random;
-import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
 
 public class DragonsDiceDuelClient {
 
+    private static final Metadata.Key<String> API_KEY = Metadata.Key.of(Constants.API_KEY, Metadata.ASCII_STRING_MARSHALLER);
     private final DragonsDiceDuelGrpc.DragonsDiceDuelStub asyncStub;
     public static CountDownLatch latch = new CountDownLatch(1);
 
@@ -86,9 +89,20 @@ public class DragonsDiceDuelClient {
         requestObserver.onNext(playRequest);
     }
 
+    private static List<ClientInterceptor> getClientIntercept() {
+
+        var keySecretMetadata = new Metadata();
+        keySecretMetadata.put(API_KEY, Constants.API_SECRET);
+
+        return List.of(
+                MetadataUtils.newAttachHeadersInterceptor(keySecretMetadata)
+        );
+    }
+
     public static void main(String[] args) throws InterruptedException {
         ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 6565)
                 .usePlaintext()
+                .intercept(getClientIntercept())
                 .build();
 
         DragonsDiceDuelClient client = new DragonsDiceDuelClient(channel);
@@ -97,4 +111,6 @@ public class DragonsDiceDuelClient {
         channel.shutdown();
         latch.await();
     }
+
+
 }

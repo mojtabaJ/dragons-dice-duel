@@ -1,5 +1,6 @@
 package io.github.mojtabaj;
 
+import io.github.mojtabaj.header.HeaderServerInterceptor;
 import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -21,7 +22,11 @@ public class GrpcServer {
     }
     public static GrpcServer create(int port, BindableService... services) {
         var builder = ServerBuilder.forPort(port);
-        Arrays.asList(services).forEach(builder::addService);
+        Arrays.asList(services).forEach(f->
+                builder
+                        .addService(f)
+                        .intercept(new HeaderServerInterceptor())
+        );
         return new GrpcServer(builder.build());
     }
     public GrpcServer start(){
