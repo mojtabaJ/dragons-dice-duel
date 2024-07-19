@@ -2,54 +2,59 @@ syntax = "proto3";
 
 package ddd;
 
-import "google/protobuf/empty.proto";
-
+// Options for Java code generation
 option java_multiple_files = true;
 option java_package = "io.github.mojtabaj.data";
 option java_outer_classname = "DragonsDiceDuelProto";
 
+// Enum representing the two factions in the game
 enum Faction {
-  THE_GREENS = 0;
-  THE_BLACKS = 1;
+  THE_GREENS = 0; // Represents the Greens faction
+  THE_BLACKS = 1; // Represents the Blacks faction
 }
 
+// Message representing the data of a player
 message PlayerData {
-  int32 id = 1; //this id will create on join
-  string player_name = 2; // name will insert by client side
-  Faction faction = 3; // faction will insert by client side
-  int32 score = 4; // current sore
-  int32 attempt = 5; //current attempt
-  int32 turns = 6; //played turns
+  int32 id = 1; // Unique identifier for the player, assigned when the player joins the game
+  string player_name = 2; // The name of the player, provided by the client
+  Faction faction = 3; // The faction of the player, provided by the client
+  int32 score = 4; // The current score of the player
+  int32 attempt = 5; // The number of dice rolls attempted by the player
+  int32 turns = 6; // The number of turns the player has taken
 }
 
-message GameData{
-  repeated PlayerData players = 1; //all player
-  PlayerData winner = 2; //winner of game
+// Message representing the overall game data
+message GameData {
+  repeated PlayerData players = 1; // List of all players in the game
+  PlayerData winner = 2; // The player who won the game
 }
 
-message DiceData{
-  PlayerData player = 1; //all player
-  int32 dice = 2; //winner of game
+// Message representing dice roll data
+message DiceData {
+  PlayerData player = 1; // The player who rolled the dice
+  int32 dice = 2; // The result of the dice roll
 }
 
+// Message representing a game request from the client
 message GameRequest {
   oneof action {
-    PlayerData join_request = 1; //when player req for join
-    DiceData dice = 2; //when player take action
+    PlayerData join_request = 1; // Request to join the game
+    DiceData dice = 2; // Request to roll the dice
   }
 }
 
+// Message representing a game response from the server
 message GameResponse {
   oneof response {
-    PlayerData joined = 1; //when player join
-    PlayerData turns = 2; //when server says who's turns is it
-    PlayerData played = 3; //when player dice (play action)
-    GameData result = 4; //when game ends
+    PlayerData joined = 1; // Response indicating a player has joined the game
+    PlayerData turns = 2; // Response indicating whose turn it is
+    PlayerData played = 3; // Response indicating a player's dice roll action
+    GameData result = 4; // Response indicating the result of the game
   }
 }
 
-
-
+// Service definition for the DragonsDiceDuel game
 service DragonsDiceDuel {
+  // RPC method for streaming game requests and responses
   rpc PlayGame (stream GameRequest) returns (stream GameResponse);
 }
